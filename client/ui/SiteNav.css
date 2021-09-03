@@ -1,0 +1,16 @@
+div.navbar {
+	background-color: green;
+	color: white;
+	position: fixed;
+	left: 0;
+	top: 0;
+	overflow: hidden;
+	width: 100%;
+	padding-left: 10px;
+	height: 20px;
+}
+
+div.navbar span#context_id_display {
+	float: right;
+	margin-right: 22px;
+}

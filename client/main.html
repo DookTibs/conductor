@@ -1,25 +1,29 @@
 <head>
-  <title>conductor</title>
+	<title>conductor</title>
+
+	<meta charset="utf-8"/>
+	<meta http-equiv="x-ua-compatible" content="ie=edge"/>
+	<meta name="viewport" content="width=device-width, height=device-height, viewport-fit=cover, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+	<meta name="mobile-web-app-capable" content="yes"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
 </head>
 
 <body>
-  <h1>Welcome to Meteor!</h1>
+  {{> siteTopNavBar}}
 
-  {{> hello}}
-  {{> info}}
 </body>
 
-<template name="hello">
-  <button>Click Me</button>
-  <p>You've pressed the button {{counter}} times.</p>
-</template>
-
-<template name="info">
-  <h2>Learn Meteor!</h2>
-  <ul>
-    <li><a href="https://www.meteor.com/try" target="_blank">Do the Tutorial</a></li>
-    <li><a href="http://guide.meteor.com" target="_blank">Follow the Guide</a></li>
-    <li><a href="https://docs.meteor.com" target="_blank">Read the Docs</a></li>
-    <li><a href="https://forums.meteor.com" target="_blank">Discussions</a></li>
-  </ul>
+<template name="landingPage">
+	Got a code? Enter it here:
+	<form method="GET" action="/joinContext">
+		<input type="text" name="contextCode" id="contextCode" size="8"/>
+		<input type="submit"/>
+	</form>
+	<hr>
+	or pick something to conduct:
+	<ul>
+	{{ #each availableGames }}
+	<li><a href="/startNewContext?type={{gameId}}">{{name}}</a></li>
+	{{ /each }}
+	</ul>
 </template>
