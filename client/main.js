@@ -1,7 +1,9 @@
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
-import { GamesCollection, insertStubbedGame } from '/imports/api/GamesCollection';
+import { GamesCollection, insertStubbedGame, findGameByContextCode } from '/imports/api/GamesCollection';
 import { makeId } from '/imports/util/util.js';
+
+window.GamesCollection = GamesCollection;
 
 // import { FlowRouter } from 'meteor/kadira:flow-router';
 // import { BlazeLayout } from 'meteor/kadira:blaze-layout';
@@ -44,6 +46,20 @@ FlowRouter.route("/joinContext", {
 		console.log("action for /joinContext route");
 		var contextCode = queryParams["contextCode"];
 		console.log("join [" + contextCode + "]");
+
+		// seems backwards; we need to subscribe, and then run a separate query? if I don't subscribe and wait,
+		// then gameProbe is loaded async and is usually null when I check it...
+		Meteor.subscribe('game_with_context_code', contextCode, function() {
+			var gameProbe = findGameByContextCode(contextCode);
+			// window.gameProbe = gameProbe;
+			if (gameProbe.count() == 1) {
+				Session.set("CONTEXT_ID", contextCode);
+				loadGameModule();
+			} else {
+				console.log("error; code [" + contextCode + "] returned [" + gameProbe.count() + "] matches");
+			}
+
+		});
 	}
 });
 
@@ -58,29 +74,33 @@ FlowRouter.route("/startNewContext", {
 		Session.set("CONTEXT_ID", newContextCode);
 		insertStubbedGame(contextType, newContextCode);
 
-		// now somehow load in the game module...
-		console.log("about to import from the module...");
-		import { postCreated, postRendered, getTemplateVars } from '/imports/modules/iberian_gauge/game';
-		// import { foo } from '/imports/modules/iberian_gauge/game';
-		// foo();
-		import '/imports/modules/iberian_gauge/game.html';
-		console.log("past the import!");
-
-		console.log("render the template!");
-		BlazeLayout.render("initialSetup", getTemplateVars());
-		console.log("past render for [" + Template.initialSetup + "]");
-
-		Template.initialSetup.onCreated(function x() {
-			console.log("onCreated A");
-			postCreated();
-		});
-
-		Template.initialSetup.onRendered(function x() {
-			console.log("onRendered A");
-			postRendered();
-		});
+		loadGameModule();
 	}
 });
+
+var loadGameModule = function() {
+	// now somehow load in the game module...
+	console.log("about to import from the module; currently hardcoded for iberian gauge...");
+	import { postCreated, postRendered, getTemplateVars } from '/imports/modules/iberian_gauge/game';
+	// import { foo } from '/imports/modules/iberian_gauge/game';
+	// foo();
+	import '/imports/modules/iberian_gauge/game.html';
+	console.log("past the import!");
+
+	console.log("render the template!");
+	BlazeLayout.render("initialSetup", getTemplateVars());
+	console.log("past render for [" + Template.initialSetup + "]");
+
+	Template.initialSetup.onCreated(function x() {
+		console.log("onCreated A");
+		postCreated();
+	});
+
+	Template.initialSetup.onRendered(function x() {
+		console.log("onRendered A");
+		postRendered();
+	});
+};
 
 /*
 Template.hello.onCreated(function helloOnCreated() {
