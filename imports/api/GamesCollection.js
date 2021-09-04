@@ -17,3 +17,17 @@ export const findGameByContextCode = function(context_code) {
         context_code: context_code
     });
 };
+
+export const demoUpdate = function(context_code, val) {
+    console.log("updating game with code [" + context_code + "], val [" + val + "] from [" + (Meteor.isClient ? "client" : "server") + "]");
+	var game = findGameByContextCode(context_code).fetch()[0];
+    console.log("that's game [" + game._id + "]");
+
+    GamesCollection.update({
+		_id: game._id
+    }, {
+		"$set": {
+			"foo": val
+		}
+	});
+};

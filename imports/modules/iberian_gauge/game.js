@@ -1,3 +1,4 @@
+import { demoUpdate } from '/imports/api/GamesCollection';
 /*
 export const foo = function() {
 	console.log("foo iberican gauge!");
@@ -39,4 +40,12 @@ export const postCreated = function() {
 export const postRendered = function() {
 	console.log("postRendered!");
 	$("div#iberian_gauge").html("this was set by ibgauge js b");
+
+	$("#triggerfoo").click(function() {
+		console.log("triggerclick");
+		var val = $("#foodemo").val();
+		var sess = Session.get("CONTEXT_ID");
+		console.log("work on '" + sess + "' / '" + val + "'");
+		demoUpdate(sess, val);
+	});
 };

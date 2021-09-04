@@ -9,7 +9,7 @@ window.GamesCollection = GamesCollection;
 // import { BlazeLayout } from 'meteor/kadira:blaze-layout';
 // import { CONTEXT_ID } from '/imports/main/setup.js';
 
-Session.set("CONTEXT_ID", "foo");
+Session.set("CONTEXT_ID", "");
 
 import './main.html';
 
@@ -99,6 +99,35 @@ var loadGameModule = function() {
 	Template.initialSetup.onRendered(function x() {
 		console.log("onRendered A");
 		postRendered();
+
+		// how can I do something in Javascript whenever the game updates?
+		// approach one - this appears to work
+		var sessionContextId = Session.get("CONTEXT_ID");
+		console.log("More work for [" + sessionContextId + "]");
+		Meteor.subscribe('game_with_context_code', sessionContextId, function() {
+			var gameCursor = findGameByContextCode(sessionContextId);
+
+			var cursorHandle = gameCursor.observeChanges({
+				added: function (newDoc) {
+					console.log("doc added: " + newDoc);
+					console.log(gameCursor.fetch()[0]);
+				},
+				changed: function (newDoc, oldDoc) {
+					console.log("doc changed:");
+					console.log(gameCursor.fetch()[0]);
+				},
+				removed: function (oldDoc) {
+					console.log("doc removed: " + oldDoc);
+				}
+			});
+		});
+	});
+
+	Template.initialSetup.helpers({
+		foo() {
+			var game = findGameByContextCode(Session.get("CONTEXT_ID")).fetch()[0];
+			return game["foo"];
+		}
 	});
 };
 
