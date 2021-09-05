@@ -2,3 +2,7 @@ body {
   padding: 10px;
   font-family: sans-serif;
 }
+
+div#__blaze-root {
+	margin-top: 5px;
+}

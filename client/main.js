@@ -1,6 +1,6 @@
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
-import { GamesCollection, insertStubbedGame, findGameByContextCode } from '/imports/api/GamesCollection';
+import { GamesCollection, insertStubbedGame, setPlayersForGame, findGameByContextCode } from '/imports/api/GamesCollection';
 import { makeId } from '/imports/util/util.js';
 
 window.GamesCollection = GamesCollection;
@@ -70,13 +70,113 @@ FlowRouter.route("/startNewContext", {
 		var contextType = queryParams["type"];
 		console.log("start [" + contextType + "]");
 
+		/*
 		var newContextCode = makeId();
 		Session.set("CONTEXT_ID", newContextCode);
 		insertStubbedGame(contextType, newContextCode);
 
 		loadGameModule();
+		*/
+		loadGameModuleForInitialSetup();
 	}
 });
+
+export const renderTemplate = function(templateName, templateData, onCreated, onRendered) {
+	Template[templateName].onCreated(function x() {
+		console.log(templateName + " onCreated...");
+		if (typeof(onCreated) === "function") {
+			onCreated();
+		}
+	});
+
+	Template[templateName].onRendered(function x() {
+		console.log(templateName + " onRendered...");
+		if (typeof(onRendered) === "function") {
+			onRendered();
+		}
+	});
+
+	BlazeLayout.render(templateName, templateData);
+}
+
+export const setGamePlayers = function(contextCode, playerNames, callbackFxn) {
+	Meteor.call('setPlayersForGame', {
+		contextCode: contextCode,
+		playerNames: playerNames
+	}, (err, res) => {
+		if (err) {
+			// communications error
+			console.log("!!! setGamePlayers comms error");
+		} else {
+			if (res === true) {
+				callbackFxn();
+			} else {
+				// update affected 0 rows; possible race condition
+				console.log("!!! setGamePlayers no rows updated; how to recover?!!? resync somehow?");
+			}
+		}
+	});
+};
+
+export const genericGameUpdate = function(contextCode, requiredGameState, dataToSet, callbackFxn) {
+	console.log("NEW GENERIC UPDATED");
+	Meteor.call('setArbitraryGameData', {
+		"contextCode": contextCode,
+		"gameState": requiredGameState,
+		"dataToSet": dataToSet
+	}, (err, res) => {
+		if (err) {
+			// communications error
+			console.log("!!! genericGameUpdate comms error");
+		} else {
+			if (res === true) {
+				callbackFxn();
+			} else {
+				console.log("!!! genericGameUpdate no rows updated; how to recover?!!? resync somehow?");
+			}
+		}
+	});
+};
+
+export const createStubbedGame = function(contextType, callbackFxn) {
+	var newContextCode = makeId();
+	Session.set("CONTEXT_ID", newContextCode);
+	// insertStubbedGame(contextType, newContextCode);
+	Meteor.call('insertStubbedGame', {
+		contextType: contextType,
+		contextCode: newContextCode
+	}, (err, res) => {
+		if (err) {
+			// communications error
+			callbackFxn(false);
+		} else {
+			callbackFxn(true);
+		}
+	});
+};
+
+var loadGameModuleForInitialSetup = function() {
+	// now somehow load in the game module...
+	console.log("about to import from the module; currently hardcoded for iberian gauge...");
+	import { postSetupCreated, postSetupRendered, getSetupTemplateVars } from '/imports/modules/iberian_gauge/game';
+	import '/imports/modules/iberian_gauge/game.html';
+	import '/imports/modules/iberian_gauge/game.css';
+	console.log("past the import!");
+
+	Template.initialSetup.onCreated(function x() {
+		if (typeof(postSetupCreated) === "function") {
+			postSetupCreated();
+		}
+	});
+
+	Template.initialSetup.onRendered(function x() {
+		if (typeof(postSetupRendered) === "function") {
+			postSetupRendered();
+		}
+	});
+
+	BlazeLayout.render("initialSetup", getSetupTemplateVars());
+};
 
 var loadGameModule = function() {
 	// now somehow load in the game module...
@@ -85,7 +185,7 @@ var loadGameModule = function() {
 	// import { foo } from '/imports/modules/iberian_gauge/game';
 	// foo();
 	import '/imports/modules/iberian_gauge/game.html';
-	console.log("past the import!");
+	console.log("past the import, including css!");
 
 	console.log("render the template!");
 	BlazeLayout.render("initialSetup", getTemplateVars());
