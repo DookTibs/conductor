@@ -6,6 +6,10 @@ var RAILROAD_COLORS = [
     "yellow", "red", "purple", "orange", "aqua"
 ];
 
+var PLAYER_COLORS = [
+    "pink", "white", "green", "blue", "magenta"
+];
+
 var STOCK_BUMP_THRESHOLDS = [
     100, 90, 80, 70, 55, 40, 25
 ];
@@ -104,8 +108,19 @@ var makeRandomizedCompanyList = function() {
 };
 
 export const postSetupRendered = function() {
+	for (var i = 1 ; i <= 5 ; i++) {
+		for (var k = 0 ; k < PLAYER_COLORS.length ; k++) {
+			var opt = $("<option/>").val(PLAYER_COLORS[k]).html(PLAYER_COLORS[k]).appendTo($("#color" + i));
+			if (i-1 == k) {
+				opt.attr("selected", true);
+			}
+		}
+	}
+
 	$("#startIberianGauge").click(function() {
 		var playerNames = [];
+		var playerColors = [];
+		var chosenColors = {};
 		for (var i = 1 ; i <= 5 ; i++) {
 			var playerName = $("#player" + i).val();
 			if (playerName === undefined) {
@@ -115,6 +130,15 @@ export const postSetupRendered = function() {
 			playerName = playerName.trim();
 			if (playerName != "") {
 				playerNames.push(playerName);
+
+				var selectedColor = $("#color" + i).val();
+				if (chosenColors[selectedColor] !== undefined) {
+					alert("Each player needs their own color");
+					return false;
+				} else {
+					playerColors.push(selectedColor);
+					chosenColors[selectedColor] = true;
+				}
 			}
 		}
 
@@ -130,7 +154,7 @@ export const postSetupRendered = function() {
 
 				console.log("! SETTING PLAYERS");
 
-				setGamePlayers(contextCode, playerNames, function() {
+				setGamePlayers(contextCode, playerNames, playerColors, function() {
 					console.log("! SETTING COMPANIES");
 
 					genericGameUpdate(contextCode, "defaultSetup", {

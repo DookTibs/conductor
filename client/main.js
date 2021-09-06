@@ -1,6 +1,6 @@
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
-import { GamesCollection, insertStubbedGame, setPlayersForGame, findGameByContextCode } from '/imports/api/GamesCollection';
+import { GamesCollection, insertStubbedGame, findGameByContextCode } from '/imports/api/GamesCollection';
 import { makeId } from '/imports/util/util.js';
 
 window.GamesCollection = GamesCollection;
@@ -99,10 +99,11 @@ export const renderTemplate = function(templateName, templateData, onCreated, on
 	BlazeLayout.render(templateName, templateData);
 }
 
-export const setGamePlayers = function(contextCode, playerNames, callbackFxn) {
+export const setGamePlayers = function(contextCode, playerNames, playerColors, callbackFxn) {
 	Meteor.call('setPlayersForGame', {
 		contextCode: contextCode,
-		playerNames: playerNames
+		playerNames: playerNames,
+		playerColors: playerColors
 	}, (err, res) => {
 		if (err) {
 			// communications error

@@ -50,13 +50,19 @@ if (Meteor.isServer) {
 		}
 	});
 	Meteor.methods({
-		'setPlayersForGame'({ contextCode, playerNames }) {
+		'setPlayersForGame'({ contextCode, playerNames, playerColors }) {
 			console.log(">>>> setPlayersForGame [" + contextCode + "], [" + playerNames + "]");
 			var players = [];
 			for (var i = 0 ; i < playerNames.length ; i++) {
-				players.push({
+				var playerObj = {
 					"name": playerNames[i]
-				});
+				}
+
+				if (playerColors !== null && playerColors !== undefined) {
+					playerObj["color"] = playerColors[i];
+				}
+
+				players.push(playerObj);
 			}
 
 			var rowsAffected = GamesCollection.update({
