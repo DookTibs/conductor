@@ -1,6 +1,5 @@
 import { demoUpdate } from '/imports/api/GamesCollection';
-import { createStubbedGame, setGamePlayers, genericGameUpdate, renderTemplate } from '/client/main';
-import { setArbitraryData } from '/imports/api/GamesCollection';
+import { genericGameUpdateWithCustomFilter, createStubbedGame, setGamePlayers, genericGameUpdate, renderTemplate } from '/client/main';
 
 var RAILROAD_COLORS = [
     "yellow", "red", "purple", "orange", "aqua"
@@ -70,9 +69,58 @@ Template.initialSetup.helpers({
 	}
 });
 
-export const postCreated = function() {
-	console.log("postCreated!");
-	$("div#iberian_gauge").html("this was set by ibgauge js a");
+var setGameOpListeners = function() {
+	$("#float_run").click(function() {
+		var floatPlayer = $("#float_player").val();
+		var floatCompany = $("#float_company").val();
+		var floatPrice = $("#float_price").val();
+
+		// TODO - when player is selected we could disable certain float values...
+		var player = getPlayerByName(floatPlayer);
+		if (player.cash < floatPrice) {
+			alert(floatPlayer + " only has " + player.cash + " pesetas; cannot float " + floatCompany + " at " + floatPrice + ".");
+			return;
+		} else {
+			var op = {
+				type: "float_company",
+				actor: floatPlayer,
+				target: floatCompany,
+				price: floatPrice
+			};
+
+			/*
+				db.games.update({
+						context_code: "UXIR",
+						"companies.3.shares.1": { "$type": 10 }
+				}, {
+						"$set": {
+								"companies.3.shares.1": "Bar"
+						}
+				});
+			*/
+			var contextCode = Session.get("CONTEXT_ID");
+			var companyIdx = getCompanyIndexByColor(floatCompany);
+			var playerIdx = getPlayerIndexByName(floatPlayer);
+			var filter = { };
+			filter["companies." + companyIdx + ".shares.0"] = { "$type": 10 };
+			filter["players." + playerIdx + ".cash"] = player.cash;
+
+			var updateObj = {};
+			updateObj["companies." + companyIdx + ".shares.0"] = floatPlayer;
+			updateObj["companies." + companyIdx + ".treasury"] = Number(floatPrice);
+			updateObj["players." + playerIdx + ".cash"] = Number(player.cash - floatPrice);
+
+			genericGameUpdateWithCustomFilter(contextCode, filter, op, updateObj, function() {
+				console.log("BACK, did it work?!?!");
+			});
+		}
+	});
+};
+
+export const postGameCreated = function() {
+	console.log("postGameCreated!");
+
+	// $("div#iberian_gauge").html("this was set by ibgauge js a");
 
 	/*
 	let timerId = setInterval(function() {
@@ -95,9 +143,9 @@ var makeRandomizedCompanyList = function() {
 
 		var company = {
 			"color": randomCompanyOrder[i],
-			"stock": 0,
+			"stock": null,
 			"income": 10 * i + 50,
-			"treasury": 0,
+			"treasury": null,
 			"shares": shares
 		};
 
@@ -105,6 +153,109 @@ var makeRandomizedCompanyList = function() {
 	}
 
 	return companies;
+};
+
+var rebuildDash = function() {
+	var gameState = Session.get("GAME_STATE");
+	if (gameState === undefined || gameState["_id"] === undefined) {
+		console.log("BAILING");
+		return;
+	}
+
+	var container = $("#ibDash").empty();
+
+	var table = $("<table border=0>").addClass("dividendChart").appendTo(container);
+
+	var companies = gameState["companies"];
+
+	var justRenderedStockBump = false;
+	for (var income = 100 ; income >= 10 ; income -= 5) {
+		var incomeRow = $("<tr/>").appendTo(table);
+
+		if (STOCK_BUMP_THRESHOLDS.indexOf(income) != -1) {
+			$("<td rowspan=2/>").addClass("stockbump").html("&#128200;&#10140;").appendTo(incomeRow);
+			justRenderedStockBump = true;
+		} else {
+			if (justRenderedStockBump) {
+				justRenderedStockBump = false;
+			} else {
+				$("<td/>").html("&nbsp;").appendTo(incomeRow);
+			}
+		}
+
+		for (var i = 0 ; i < companies.length ; i++) {
+			var company = companies[i];
+			// $("<td/>").html(company.income == income ? calculateDividendForCompany(company) : "&nbsp;").appendTo(incomeRow);
+			var td = $("<td/>").appendTo(incomeRow);
+
+			if (company.income == income) {
+				var circle = $("<div/>").addClass("railroad circle small").addClass(company.color).appendTo(td);
+				var p = $("<p/>").html(calculateDividendForCompany(company)).appendTo(circle);
+			} else {
+				// td.html("&nbsp;");
+				var circle = $("<div/>").addClass("railroad circle tiny ghosted").addClass(company.color).appendTo(td);
+				var p = $("<p/>").html(calculateDividendForCompanyAtIncome(company, income)).appendTo(circle);
+			}
+		}
+	}
+
+	var treasuryRow = $("<tr/>").appendTo(table);
+	$("<td/>").html("Treasury").appendTo(treasuryRow);
+	for (var i = 0 ; i < companies.length ; i++) {
+		var company = companies[i];
+		var td = $("<td/>").html(company["treasury"] == null ? "&nbsp;" : company["treasury"]).appendTo(treasuryRow);
+	}
+
+	var stockRow = $("<tr/>").appendTo(table);
+	$("<td/>").html("Stock").appendTo(stockRow);
+	for (var i = 0 ; i < companies.length ; i++) {
+		var company = companies[i];
+		var td = $("<td/>").html(company["stock"] == null ? "&nbsp;" : company["stock"]).appendTo(stockRow);
+	}
+
+
+	var playerTable = $("<table border=0>").addClass("playerHoldings").appendTo(container);
+	var header = $("<tr/>").appendTo(playerTable);
+	$("<td/>").html("&nbsp;").appendTo(header);
+	$("<td/>").html("Cash").appendTo(header);
+	var players = gameState["players"];
+	for (var i = 0 ; i < players.length ; i++) {
+		var playerRow = $("<tr/>").appendTo(playerTable);
+		$("<td/>").html(players[i].name).appendTo(playerRow);
+		$("<td/>").html(players[i].cash).appendTo(playerRow);
+	}
+
+	// set the UI elements - start
+	var floatableCompanies = [];
+	for (var i = 0 ; i < companies.length ; i++) {
+		if (companies[i].shares[0] == null) {
+			floatableCompanies.push(companies[i].color);
+		}
+	}
+
+	var floatCapablePlayers = [];
+	for (var i = 0 ; i < players.length ; i++) {
+		if (players[i].cash >= 12) {
+			floatCapablePlayers.push(players[i].name);
+		}
+	}
+
+	if (floatableCompanies.length > 0 && floatCapablePlayers.length > 0) {
+		$("div#ui_sr_float").show();
+		$("#float_company").empty();
+		for (var k = 0 ; k < floatableCompanies.length ; k++) {
+			var opt = $("<option/>").val(floatableCompanies[k]).html(floatableCompanies[k]).appendTo($("#float_company"));
+		}
+
+		$("#float_player").empty();
+		for (var k = 0 ; k < floatCapablePlayers.length ; k++) {
+			var opt = $("<option/>").val(floatCapablePlayers[k]).html(floatCapablePlayers[k]).appendTo($("#float_player"));
+		}
+	} else {
+		$("div#ui_sr_float").hide();
+	}
+	// set the UI elements - end
+
 };
 
 export const postSetupRendered = function() {
@@ -152,16 +303,17 @@ export const postSetupRendered = function() {
 			createStubbedGame("iberian_gauge", function() {
 				var contextCode = Session.get("CONTEXT_ID");
 
-				console.log("! SETTING PLAYERS");
-
 				setGamePlayers(contextCode, playerNames, playerColors, function() {
-					console.log("! SETTING COMPANIES");
-
-					genericGameUpdate(contextCode, "defaultSetup", {
+					var updateObj = {
 						"state": "SR1",
 						"companies": makeRandomizedCompanyList()
-					}, function() {
-						renderTemplate("iberian_gauge_gameplay");
+					};
+					for (var i = 0 ; i < playerNames.length ; i++) {
+						updateObj["players." + i + ".cash"] = 40;
+					}
+
+					genericGameUpdate(contextCode, "defaultSetup", updateObj, function() {
+						FlowRouter.go("/game?contextCode=" + Session.get("CONTEXT_ID"));
 					});
 
 				});
@@ -172,8 +324,20 @@ export const postSetupRendered = function() {
 	});
 };
 
-export const postRendered = function() {
-	console.log("postRendered!");
+export const processGameUpdate = function(op, gameState) {
+	console.log("##### processGameUpdate: start (" + op + ")");
+	console.log(gameState);
+	console.log("##### processGameUpdate: end");
+	rebuildDash();
+};
+
+export const postGameRendered = function() {
+	console.log("postGameRendered!");
+
+	// TODO - populate the UI elements
+	setGameOpListeners();
+
+	/*
 	$("div#iberian_gauge").html("this was set by ibgauge js b");
 
 	$("#triggerfoo").click(function() {
@@ -183,4 +347,64 @@ export const postRendered = function() {
 		console.log("work on '" + sess + "' / '" + val + "'");
 		demoUpdate(sess, val);
 	});
+	*/
+	rebuildDash();
 };
+
+function getCompanyByColor(color) {
+	var gameState = Session.get("GAME_STATE");
+	var companies = gameState.companies;
+	for (var i = 0 ; i < companies.length ; i++) {
+		if (companies[i].color == color) {
+			return companies[i];
+		}
+	}
+}
+
+function getCompanyIndexByColor(color) {
+	var gameState = Session.get("GAME_STATE");
+	var companies = gameState.companies;
+	for (var i = 0 ; i < companies.length ; i++) {
+		if (companies[i].color == color) {
+			return i;
+		}
+	}
+}
+
+function getPlayerByName(name) {
+	var gameState = Session.get("GAME_STATE");
+	var players = gameState.players;
+	for (var i = 0 ; i < players.length ; i++) {
+		if (players[i].name == name) {
+			return players[i];
+		}
+	}
+}
+
+function getPlayerIndexByName(name) {
+	var gameState = Session.get("GAME_STATE");
+	var players = gameState.players;
+	for (var i = 0 ; i < players.length ; i++) {
+		if (players[i].name == name) {
+			return i;
+		}
+	}
+}
+
+function calculateDividendForCompanyColor(color) {
+	var company = getCompanyByColor(color);
+	return calculateDividendForCompany(company);
+}
+
+function calculateDividendForCompany(company) {
+	var numShares = company.shares.length;
+	var income = company.income;
+
+	return Math.ceil(income / numShares);
+}
+
+function calculateDividendForCompanyAtIncome(company, income) {
+	var numShares = company.shares.length;
+
+	return Math.ceil(income / numShares);
+}

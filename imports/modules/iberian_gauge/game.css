@@ -2,3 +2,81 @@ form#setupForm span {
 	float: left;
 	width: 100px;
 }
+
+.dividendChart {
+	float: left;
+}
+
+.dividendChart td {
+	text-align: center;
+}
+
+.stockbump {
+	color: green;
+}
+
+.ghosted {
+	opacity: .15;
+}
+
+.circle {
+	border-radius: 50%;
+	text-align: center;
+	border: 1px solid black;
+	margin: auto;
+}
+
+.circle.small {
+	width: 20px;
+	height: 20px;
+}
+
+.circle.tiny {
+	width: 15px;
+	height: 15px;
+}
+
+.circle.small p {
+	position: relative;
+	top: -15px;
+}
+
+.circle.tiny p {
+	position: relative;
+	top: -10px;
+	font-size: .7em;
+}
+
+td.railroad {
+	text-align: center;
+}
+
+.aqua.railroad {
+	background-color: aqua;
+}
+
+.red.railroad {
+	background-color: red;
+	color: white;
+}
+
+.purple.railroad {
+	background-color: purple;
+	color: white;
+}
+
+.orange.railroad {
+	background-color: orange;
+}
+
+.yellow.railroad {
+	background-color: yellow;
+}
+
+.playerHoldings {
+	float: right;
+}
+
+hr {
+	clear: both;
+}

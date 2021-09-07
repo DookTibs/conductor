@@ -42,7 +42,8 @@ if (Meteor.isServer) {
 			var insertedId = GamesCollection.insert({
 				state: "defaultSetup",
 				game_type: contextType,
-				context_code: contextCode
+				context_code: contextCode,
+				gameOps: []
 			});
 			console.log(">>>> insertStubbedGame (" + insertedId + ")");
 
@@ -85,6 +86,27 @@ if (Meteor.isServer) {
 				state: gameState
 			}, {
 				"$set": dataToSet
+			});
+
+			return rowsAffected == 1;
+		}
+	});
+
+	// TODO rename me - b/c of the op, this is a special case
+	Meteor.methods({
+		'setArbitraryGameDataWithCustomFilter'({ contextCode, filter, op, dataToSet }) {
+			console.log(">>>> setArbitraryGameDataWithCustomFilter [" + contextCode + "], [" + filter + "], [" + dataToSet + "]");
+
+			var fixedFilter = JSON.parse(JSON.stringify(filter));
+			fixedFilter["context_code"] = contextCode;
+			console.log("BUILD FILTER NOW:");
+			console.log(JSON.stringify(fixedFilter));
+
+			var rowsAffected = GamesCollection.update(fixedFilter, {
+				"$set": dataToSet,
+				"$push": {
+					"gameOps": op
+				}
 			});
 
 			return rowsAffected == 1;
