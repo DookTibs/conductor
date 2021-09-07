@@ -88,26 +88,20 @@ var setGameOpListeners = function() {
 				price: floatPrice
 			};
 
-			/*
-				db.games.update({
-						context_code: "UXIR",
-						"companies.3.shares.1": { "$type": 10 }
-				}, {
-						"$set": {
-								"companies.3.shares.1": "Bar"
-						}
-				});
-			*/
 			var contextCode = Session.get("CONTEXT_ID");
 			var companyIdx = getCompanyIndexByColor(floatCompany);
 			var playerIdx = getPlayerIndexByName(floatPlayer);
 			var filter = { };
-			filter["companies." + companyIdx + ".shares.0"] = { "$type": 10 };
+			filter["companies." + companyIdx + ".shares.0"] = { "$type": 10 }; // TODO - magic type!
+			filter["companies." + companyIdx + ".stock"] = null;
+			filter["companies." + companyIdx + ".income"] = null;
 			filter["players." + playerIdx + ".cash"] = player.cash;
 
 			var updateObj = {};
 			updateObj["companies." + companyIdx + ".shares.0"] = floatPlayer;
 			updateObj["companies." + companyIdx + ".treasury"] = Number(floatPrice);
+			updateObj["companies." + companyIdx + ".stock"] = Number(floatPrice);
+			updateObj["companies." + companyIdx + ".income"] = 10;
 			updateObj["players." + playerIdx + ".cash"] = Number(player.cash - floatPrice);
 
 			genericGameUpdateWithCustomFilter(contextCode, filter, op, updateObj, function() {
@@ -115,6 +109,13 @@ var setGameOpListeners = function() {
 			});
 		}
 	});
+};
+
+// TODO - should "Op" be a class so we don't spread this functionality all over?
+export const makeOpReadable = function(op) {
+	if (op.type == "float_company") {
+		return op.actor + " floated " + op.target + " at " + op.price;
+	}
 };
 
 export const postGameCreated = function() {
@@ -144,7 +145,7 @@ var makeRandomizedCompanyList = function() {
 		var company = {
 			"color": randomCompanyOrder[i],
 			"stock": null,
-			"income": 10 * i + 50,
+			"income": null,
 			"treasury": null,
 			"shares": shares
 		};
@@ -256,6 +257,23 @@ var rebuildDash = function() {
 	}
 	// set the UI elements - end
 
+	displayLogData();
+};
+
+// TODO - this should be part of the core - every game should probably be showing this stuff
+var displayLogData = function() {
+	var gameLogContainer = $("#gameLog").empty();
+
+	var gameState = Session.get("GAME_STATE");
+	var ops = gameState.gameOps;
+	if (ops.length > 0) {
+		$("<div/>").addClass("logHeading").html("Most Recent Activity:").appendTo(gameLogContainer);
+		var numShown = 0;
+		for (var i = ops.length - 1 ; i >= 0 && numShown <= 5 ; i--) {
+			$("<div/>").addClass("logEntry").html(makeOpReadable(ops[i])).appendTo(gameLogContainer);
+			numShown++;
+		}
+	}
 };
 
 export const postSetupRendered = function() {

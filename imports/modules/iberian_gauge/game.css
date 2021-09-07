@@ -80,3 +80,10 @@ td.railroad {
 hr {
 	clear: both;
 }
+
+div#gameLog {
+	clear:right;
+	padding-top: 20px;
+	position: relative;
+	left: 25px;
+}

@@ -102,6 +102,7 @@ if (Meteor.isServer) {
 			console.log("BUILD FILTER NOW:");
 			console.log(JSON.stringify(fixedFilter));
 
+			// TODO - op should have a timestamp
 			var rowsAffected = GamesCollection.update(fixedFilter, {
 				"$set": dataToSet,
 				"$push": {
