@@ -74,7 +74,8 @@ td.railroad {
 }
 
 .playerHoldings {
-	float: right;
+	/* float: right; */
+	padding-left: 100px;
 }
 
 hr {

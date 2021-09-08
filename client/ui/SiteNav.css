@@ -1,4 +1,4 @@
-div.navbar {
+div.top_nav {
 	background-color: green;
 	color: white;
 	position: fixed;
@@ -10,7 +10,29 @@ div.navbar {
 	height: 20px;
 }
 
-div.navbar span#context_id_display {
+div.top_nav span#context_id_display {
 	float: right;
 	margin-right: 22px;
 }
+
+div.bottom_nav {
+	background-color: green;
+	color: white;
+	position: fixed;
+	left: 0;
+	bottom: 0;
+	overflow: hidden;
+	width: 100%;
+	padding-left: 10px;
+	height: 20px;
+}
+
+div.bottom_nav.expanded {
+	height:400px;
+}
+
+div.bottom_nav span#expander {
+	float: right;
+	margin-right: 22px;
+}
+

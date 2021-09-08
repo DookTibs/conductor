@@ -4,5 +4,15 @@ body {
 }
 
 div#__blaze-root {
-	margin-top: 5px;
+	/* margin-top: 5px; */
+   top: 20px;
+   bottom:20px; 
+   width: 100%; 
+   position: fixed; 
+   overflow: scroll;
+
+}
+
+div#__blaze-root.shrunk {
+	bottom: 400px;
 }
