@@ -1,5 +1,5 @@
 import { demoUpdate } from '/imports/api/GamesCollection';
-import { genericGameUpdateWithCustomFilter, createStubbedGame, setGamePlayers, genericGameUpdate, renderTemplate } from '/client/main';
+import { GameOp, genericGameUpdateWithCustomFilter, createStubbedGame, setGamePlayers, genericGameUpdate, renderTemplate } from '/client/main';
 
 var RAILROAD_COLORS = [
     "yellow", "red", "purple", "orange", "aqua"
@@ -20,7 +20,6 @@ var NUM_SHARES_BY_RAILROAD = {
     "purple": 4,
     "yellow": 4
 };
-
 
 // https://stackoverflow.com/questions/2450954/how-to-randomize-shuffle-a-javascript-array
 function shuffle(array) {
@@ -81,32 +80,24 @@ var setGameOpListeners = function() {
 			alert(floatPlayer + " only has " + player.cash + " pesetas; cannot float " + floatCompany + " at " + floatPrice + ".");
 			return;
 		} else {
-			var op = {
-				type: "float_company",
-				actor: floatPlayer,
-				target: floatCompany,
-				price: floatPrice
-			};
+			// TODO - some ops are 'auto' -- made by the game (like a transition from SR1->OR1). These ones maybe shouldn't
+			// display, should be bundled together when undo'ing, etc.
+
+			var op = new FloatOp(floatPlayer, floatCompany, floatPrice);
+			var combo = op.getActionFilterAndUpdateObj();
+			var saveableOp = op.buildSaveableVersion();
 
 			var contextCode = Session.get("CONTEXT_ID");
-			var companyIdx = getCompanyIndexByColor(floatCompany);
-			var playerIdx = getPlayerIndexByName(floatPlayer);
-			var filter = { };
-			filter["companies." + companyIdx + ".shares.0"] = { "$type": 10 }; // TODO - magic type!
-			filter["companies." + companyIdx + ".stock"] = null;
-			filter["companies." + companyIdx + ".income"] = null;
-			filter["players." + playerIdx + ".cash"] = player.cash;
-
-			var updateObj = {};
-			updateObj["companies." + companyIdx + ".shares.0"] = floatPlayer;
-			updateObj["companies." + companyIdx + ".treasury"] = Number(floatPrice);
-			updateObj["companies." + companyIdx + ".stock"] = Number(floatPrice);
-			updateObj["companies." + companyIdx + ".income"] = 10;
-			updateObj["players." + playerIdx + ".cash"] = Number(player.cash - floatPrice);
-
-			genericGameUpdateWithCustomFilter(contextCode, filter, op, updateObj, function() {
+			genericGameUpdateWithCustomFilter(contextCode, combo["filter"], saveableOp, combo["update"], function() {
 				console.log("BACK, did it work?!?!");
 			});
+
+			/*
+			var fakeOp = '{ "type": "float_company", "actor": "Dick", "target": "purple", "price": 20 }';
+			console.log("fake op is [" + fakeOp + "] (" + typeof(fakeOp) + ")");
+			var rebuilt = GameOp.reconstruct(fakeOp);
+			console.log("NEW REBUILT is [" + rebuilt + "]");
+			*/
 		}
 	});
 };
@@ -342,8 +333,8 @@ export const postSetupRendered = function() {
 	});
 };
 
-export const processGameUpdate = function(op, gameState) {
-	console.log("##### processGameUpdate: start (" + op + ")");
+export const processGameUpdate = function(addUpdateDelete, gameState) {
+	console.log("##### processGameUpdate: start (" + addUpdateDelete + ")");
 	console.log(gameState);
 	console.log("##### processGameUpdate: end");
 	rebuildDash();
@@ -426,3 +417,44 @@ function calculateDividendForCompanyAtIncome(company, income) {
 
 	return Math.ceil(income / numShares);
 }
+
+class FloatOp extends GameOp {
+	fieldsToSave= ["actor", "target", "price"];
+
+	constructor(actorName, companyColor, floatPrice) {
+		super("float_company");
+		this.actor = actorName;
+		this.target = companyColor;
+		this.price = Number(floatPrice);
+	}
+
+	getUndoFilterAndUpdateObj() {
+		return null;
+	}
+
+	getActionFilterAndUpdateObj() {
+		var player = getPlayerByName(this.actor);
+		var companyIdx = getCompanyIndexByColor(this.target);
+		var playerIdx = getPlayerIndexByName(this.actor);
+		var filter = { };
+		filter["companies." + companyIdx + ".shares.0"] = { "$type": 10 }; // TODO - magic type!
+		filter["companies." + companyIdx + ".stock"] = null;
+		filter["companies." + companyIdx + ".income"] = null;
+		filter["players." + playerIdx + ".cash"] = player.cash;
+
+		var updateObj = {};
+		updateObj["companies." + companyIdx + ".shares.0"] = this.actor;
+		updateObj["companies." + companyIdx + ".treasury"] = this.price;
+		updateObj["companies." + companyIdx + ".stock"] = this.price;
+		updateObj["companies." + companyIdx + ".income"] = 10;
+		updateObj["players." + playerIdx + ".cash"] = Number(player.cash - this.price);
+
+		return { "filter": filter, "update": updateObj };
+	}
+
+	getReadableVersion() {
+		return this.actor + " floated " + this.target + " at " + this.price;
+	}
+}
+
+GameOp.registerGameOps([FloatOp]);

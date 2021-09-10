@@ -384,3 +384,75 @@ Template.hello.events({
   },
 });
 */
+
+export class GameOp {
+	isAutoOp = false;
+	fieldsToSave= [];
+
+	constructor(opType) {
+		this.type = opType;
+	}
+
+	static registerGameOps = function(gameOpClasses) {
+		var typesToClassNames = {};
+		for (var i = 0 ; i < gameOpClasses.length ; i++) {
+			var clazz = gameOpClasses[i];
+			var obj = new clazz();
+			window[clazz.name] = clazz;
+			typesToClassNames[obj.type] = clazz.name;
+		}
+		Session.set("GAME_OPS", typesToClassNames);
+	};
+
+	// given either an object or a string like '{"type":"some_game_move","value":42}', this will
+	// check the registered game ops and build an actual appropriate GameOp subclass
+	static reconstruct(sOrObj) {
+		var o = sOrObj;
+		if (typeof(sOrObj) == "string") {
+			o = JSON.parse(sOrObj);
+		}
+
+		var registeredGameOps = Session.get("GAME_OPS");
+
+		var className = registeredGameOps[o.type];
+
+		if (className !== undefined) {
+			var obj = new window[className]();
+			obj.rebuildFromSavedVersion(o);
+			return obj;
+		} else {
+			console.log("uh oh; '" + sOrObj + "' did not map to any registered game ops");
+		}
+	}
+
+	// builds an object like { type: "pass", player: "Foo" } based on the "fieldsToSave" defined in an op,
+	// that will be persisted to the database.
+	buildSaveableVersion() {
+		var combinedFields = ["type"].concat(this.fieldsToSave);
+		var saveable = {};
+		for (var i = 0 ; i < combinedFields.length ; i++) {
+			var fieldName = combinedFields[i];
+			saveable[fieldName] = this[fieldName];
+		}
+		return saveable;
+	}
+
+	// set this.foo, this,bar etc. from data.foo, data.bar, etc.
+	rebuildFromSavedVersion(data) {
+		for (var key in data) {
+			this[key] = data[key];
+		}
+	}
+
+	getReadableVersion() {
+		return "getReadableVersion not overridden";
+	}
+
+	toString() {
+		return this.getReadableVersion();
+	}
+
+	undo() {
+		return "undo not overridden";
+	}
+}

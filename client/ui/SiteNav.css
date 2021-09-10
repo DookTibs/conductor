@@ -1,3 +1,4 @@
+/* thx https://stackoverflow.com/questions/46028417/how-do-i-stop-my-main-body-overlapping-my-navbar-and-banner-in-html-css?rq=1 */
 div.top_nav {
 	background-color: green;
 	color: white;
