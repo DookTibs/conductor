@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid';
 import { Template } from 'meteor/templating';
 import { ReactiveVar } from 'meteor/reactive-var';
 import { GamesCollection, insertStubbedGame, findGameByContextCode } from '/imports/api/GamesCollection';
@@ -386,10 +387,13 @@ Template.hello.events({
 */
 
 export class GameOp {
+	uuid = null;
 	isAutoOp = false;
+	type = null;
 	fieldsToSave= [];
 
 	constructor(opType) {
+		this.uuid = uuidv4();
 		this.type = opType;
 	}
 
@@ -425,10 +429,10 @@ export class GameOp {
 		}
 	}
 
-	// builds an object like { type: "pass", player: "Foo" } based on the "fieldsToSave" defined in an op,
+	// builds an object like { uuid: "xxxx-xx-xxxx", type: "pass", player: "Foo" } based on the "fieldsToSave" defined in an op,
 	// that will be persisted to the database.
 	buildSaveableVersion() {
-		var combinedFields = ["type"].concat(this.fieldsToSave);
+		var combinedFields = ["uuid", "type"].concat(this.fieldsToSave);
 		var saveable = {};
 		for (var i = 0 ; i < combinedFields.length ; i++) {
 			var fieldName = combinedFields[i];

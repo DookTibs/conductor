@@ -100,6 +100,23 @@ var setGameOpListeners = function() {
 			*/
 		}
 	});
+
+	$("#stock_pass_run").click(function() {
+		var passPlayer = $("#stock_pass_player").val();
+
+		// TODO - when player is selected we could disable certain float values...
+		var player = getPlayerByName(passPlayer);
+
+		var op = new StockPassOp(passPlayer);
+		var combo = op.getActionFilterAndUpdateObj();
+		var saveableOp = op.buildSaveableVersion();
+
+		var contextCode = Session.get("CONTEXT_ID");
+		genericGameUpdateWithCustomFilter(contextCode, combo["filter"], saveableOp, combo["update"], function() {
+			console.log("BACK, did it work?!?!");
+		});
+
+	});
 };
 
 // TODO - should "Op" be a class so we don't spread this functionality all over?
@@ -232,20 +249,32 @@ var rebuildDash = function() {
 		}
 	}
 
-	if (floatableCompanies.length > 0 && floatCapablePlayers.length > 0) {
+	// active player
+	var activePlayerIdx = getPlayerIndexByName(gameState.playerTurn);
+	var activePlayer = gameState.players[activePlayerIdx];
+
+	if (floatableCompanies.length > 0 && activePlayer.cash >= 12) {
 		$("div#ui_sr_float").show();
 		$("#float_company").empty();
 		for (var k = 0 ; k < floatableCompanies.length ; k++) {
 			var opt = $("<option/>").val(floatableCompanies[k]).html(floatableCompanies[k]).appendTo($("#float_company"));
 		}
 
+		/*
 		$("#float_player").empty();
 		for (var k = 0 ; k < floatCapablePlayers.length ; k++) {
 			var opt = $("<option/>").val(floatCapablePlayers[k]).html(floatCapablePlayers[k]).appendTo($("#float_player"));
 		}
+		*/
+
+		$("#float_player").val(gameState.playerTurn);
+		$("#float_player_display").html(gameState.playerTurn);
 	} else {
 		$("div#ui_sr_float").hide();
 	}
+
+	$("#stock_pass_player").val(gameState.playerTurn);
+	$("#stock_pass_player_display").html(gameState.playerTurn);
 	// set the UI elements - end
 
 	displayLogData();
@@ -265,6 +294,30 @@ var displayLogData = function() {
 			numShown++;
 		}
 	}
+};
+
+export const getNameOfNextPlayer = function(playerName) {
+	var gameState = Session.get("GAME_STATE");
+
+	if (playerName === undefined) {
+		playerName = gameState.playerTurn;
+	}
+
+	var idx = getPlayerIndexByName(playerName);
+	var nextIdx = idx == gameState.players.length - 1 ? 0 : idx + 1;
+	return gameState.players[nextIdx].name;
+};
+
+export const getNameOfPreviousPlayer = function(playerName) {
+	var gameState = Session.get("GAME_STATE");
+
+	if (playerName === undefined) {
+		playerName = gameState.playerTurn;
+	}
+
+	var idx = getPlayerIndexByName(playerName);
+	var prevIdx = idx == 0 ? gameState.players.length - 1 : idx - 1;
+	return gameState.players[prevIdx].name;
 };
 
 export const postSetupRendered = function() {
@@ -320,6 +373,9 @@ export const postSetupRendered = function() {
 					for (var i = 0 ; i < playerNames.length ; i++) {
 						updateObj["players." + i + ".cash"] = 40;
 					}
+
+					randomizedPlayerNames = shuffle(playerNames);
+					updateObj["playerTurn"] = randomizedPlayerNames[0];
 
 					genericGameUpdate(contextCode, "defaultSetup", updateObj, function() {
 						FlowRouter.go("/game?contextCode=" + Session.get("CONTEXT_ID"));
@@ -437,12 +493,14 @@ class FloatOp extends GameOp {
 		var companyIdx = getCompanyIndexByColor(this.target);
 		var playerIdx = getPlayerIndexByName(this.actor);
 		var filter = { };
+		filter["playerTurn"] = this.actor;
 		filter["companies." + companyIdx + ".shares.0"] = { "$type": 10 }; // TODO - magic type!
 		filter["companies." + companyIdx + ".stock"] = null;
 		filter["companies." + companyIdx + ".income"] = null;
 		filter["players." + playerIdx + ".cash"] = player.cash;
 
 		var updateObj = {};
+		updateObj["playerTurn"] = getNameOfNextPlayer();
 		updateObj["companies." + companyIdx + ".shares.0"] = this.actor;
 		updateObj["companies." + companyIdx + ".treasury"] = this.price;
 		updateObj["companies." + companyIdx + ".stock"] = this.price;
@@ -457,4 +515,32 @@ class FloatOp extends GameOp {
 	}
 }
 
-GameOp.registerGameOps([FloatOp]);
+class StockPassOp extends GameOp {
+	fieldsToSave= ["actor"];
+
+	constructor(actorName) {
+		super("stock_pass");
+		this.actor = actorName;
+	}
+
+	getUndoFilterAndUpdateObj() {
+		return null;
+	}
+
+	getActionFilterAndUpdateObj() {
+		var player = getPlayerByName(this.actor);
+		var filter = { };
+		filter["playerTurn"] = this.actor;
+
+		var updateObj = {};
+		updateObj["playerTurn"] = getNameOfNextPlayer();
+
+		return { "filter": filter, "update": updateObj };
+	}
+
+	getReadableVersion() {
+		return this.actor + " passed.";
+	}
+}
+
+GameOp.registerGameOps([FloatOp, StockPassOp]);

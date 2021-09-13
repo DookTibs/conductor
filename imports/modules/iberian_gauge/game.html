@@ -27,8 +27,12 @@
 	<div id="ui">
 		<div id="ui_stock_rounds">
 			<div id="ui_sr_float">
+				<!--
 				<select id="float_player"></select>
-				floats
+				-->
+				<input type="hidden" id="float_player"/>
+				<span id="float_player_display"></span>
+				<button id="float_run">floats</button>
 				<select id="float_company"></select>
 				at
 				<select id="float_price">
@@ -40,7 +44,11 @@
 					<option value="32">32</option>
 					<option value="36">36</option>
 				</select>
-				<button id="float_run">Go</button>
+			</div>
+			<div id="ui_sr_pass">
+				<input type="hidden" id="stock_pass_player"/>
+				<span id="stock_pass_player_display"></span>
+				<button id="stock_pass_run">passes</button>
 			</div>
 		</div>
 	</div>
