@@ -560,7 +560,7 @@ class FloatOp extends GameOp {
 		this.price = Number(floatPrice);
 	}
 
-	getUndoFilterAndUpdateObj() {
+	getUndoUpdateObj() {
 		return null;
 	}
 
@@ -596,7 +596,7 @@ class InvestOp extends GameOp {
 		this.shareIndex = shareIndex;
 	}
 
-	getUndoFilterAndUpdateObj() {
+	getUndoUpdateObj() {
 		return null;
 	}
 
@@ -646,15 +646,16 @@ class StockPassOp extends GameOp {
 		this.actor = actorName;
 	}
 
-	getUndoFilterAndUpdateObj() {
-		return null;
+	getUndoUpdateObj() {
+		return {
+			"playerTurn": getNameOfPreviousPlayer()
+		};
 	}
 
 	getActionUpdateObj() {
-		var updateObj = {};
-		updateObj["playerTurn"] = getNameOfNextPlayer();
-
-		return updateObj;
+		return {
+			"playerTurn": getNameOfNextPlayer()
+		};
 	}
 
 	getReadableVersion() {
@@ -673,8 +674,11 @@ class StateChangeOp extends GameOp {
 		this.isAutoOp = true;
 	}
 
-	getUndoFilterAndUpdateObj() {
-		return null;
+	getUndoUpdateObj() {
+		var updateObj = {};
+		updateObj["state"] = this.fromState;
+
+		return updateObj;
 	}
 
 	getActionUpdateObj() {

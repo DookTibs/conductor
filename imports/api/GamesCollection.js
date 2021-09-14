@@ -113,6 +113,27 @@ if (Meteor.isServer) {
 			return rowsAffected == 1;
 		}
 	});
+
+	Meteor.methods({
+		'undoArbitraryGameDataWithCustomFilter'({ contextCode, filter, dataToSet }) {
+			console.log(">>>> undoArbitraryGameDataWithCustomFilter [" + contextCode + "], [" + filter + "], [" + dataToSet + "]");
+
+			var fixedFilter = JSON.parse(JSON.stringify(filter));
+			fixedFilter["context_code"] = contextCode;
+			console.log("BUILD FILTER NOW:");
+			console.log(JSON.stringify(fixedFilter));
+
+			// TODO - op should have a timestamp
+			var rowsAffected = GamesCollection.update(fixedFilter, {
+				"$set": dataToSet,
+				"$pop": {
+					"gameOps": 1
+				}
+			});
+
+			return rowsAffected == 1;
+		}
+	});
 }
 
 /*

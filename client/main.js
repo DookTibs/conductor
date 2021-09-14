@@ -225,6 +225,25 @@ export const genericGameUpdateWithCustomFilter = function(contextCode, filter, o
 	});
 };
 
+export const genericGameUndoWithCustomFilter = function(contextCode, filter, dataToSet, callbackFxn) {
+	Meteor.call('undoArbitraryGameDataWithCustomFilter', {
+		"contextCode": contextCode,
+		"filter": filter,
+		"dataToSet": dataToSet
+	}, (err, res) => {
+		if (err) {
+			// communications error
+			console.log("!!! genericGameUndoWithCustomFilter comms error");
+		} else {
+			if (res === true) {
+				callbackFxn();
+			} else {
+				console.log("!!! genericGameUndoWithCustomFilter no rows updated; how to recover?!!? resync somehow?");
+			}
+		}
+	});
+};
+
 export const createStubbedGame = function(contextType, callbackFxn) {
 	var newContextCode = makeId();
 	Session.set("CONTEXT_ID", newContextCode);
@@ -444,6 +463,18 @@ export class GameOp {
 		return filter;
 	}
 
+	getUndoFilter() {
+		var filter = {};
+		filter["$expr"] = {
+			"$eq": [
+				{ "$arrayElemAt": [ "$gameOps.uuid", -1 ] },
+				this.uuid
+			]
+		}
+
+		return filter;
+	}
+
 	// builds an object like { uuid: "xxxx-xx-xxxx", type: "pass", player: "Foo" } based on the "fieldsToSave" defined in an op,
 	// that will be persisted to the database.
 	buildSaveableVersion() {
@@ -473,6 +504,15 @@ export class GameOp {
 
 	undo() {
 		return "undo not overridden";
+	}
+
+	sendUndoToServer(callbackFxn) {
+		var contextCode = Session.get("CONTEXT_ID");
+		genericGameUndoWithCustomFilter(contextCode, this.getUndoFilter(), this.getUndoUpdateObj(), function() {
+			if (callbackFxn != null) {
+				callbackFxn();
+			}
+		});
 	}
 
 	sendActionToServer(callbackFxn) {
