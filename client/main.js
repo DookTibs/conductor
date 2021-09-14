@@ -459,4 +459,16 @@ export class GameOp {
 	undo() {
 		return "undo not overridden";
 	}
+
+	sendToServer(callbackFxn) {
+		var combo = this.getActionFilterAndUpdateObj();
+		var saveableOp = this.buildSaveableVersion();
+
+		var contextCode = Session.get("CONTEXT_ID");
+		genericGameUpdateWithCustomFilter(contextCode, combo["filter"], saveableOp, combo["update"], function() {
+			if (callbackFxn != null) {
+				callbackFxn();
+			}
+		});
+	}
 }

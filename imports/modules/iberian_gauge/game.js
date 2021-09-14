@@ -1,6 +1,10 @@
 import { demoUpdate } from '/imports/api/GamesCollection';
 import { GameOp, genericGameUpdateWithCustomFilter, createStubbedGame, setGamePlayers, genericGameUpdate, renderTemplate } from '/client/main';
 
+var LEGAL_GAME_ROUNDS = [
+	"SR1", "OR1", "SR2", "OR2a", "OR2b", "SR3", "OR3a", "OR3b", "SR4", "OR4"
+];
+
 var RAILROAD_COLORS = [
     "yellow", "red", "purple", "orange", "aqua"
 ];
@@ -101,6 +105,37 @@ var setGameOpListeners = function() {
 		}
 	});
 
+	$("#invest_run").click(function() {
+		var investPlayer = $("#invest_player").val();
+		var investCompany = $("#invest_company").val();
+		var company = getCompanyByColor(investCompany);
+
+		var player = getPlayerByName(investPlayer);
+		if (player.cash < company.stock) {
+			alert(investPlayer + " only has " + player.cash + " pesetas; cannot invest in " + investCompany + ".");
+			return;
+		} else {
+			var shareIndex = -1;
+			for (var i = 0 ; i < company.shares.length ; i++) {
+				if (company.shares[i] == null) {
+					shareIndex = i;
+					break;
+				}
+			}
+
+			if (shareIndex >= 0) {
+				var op = new InvestOp(investPlayer, investCompany, company.stock, shareIndex);
+				var combo = op.getActionFilterAndUpdateObj();
+				var saveableOp = op.buildSaveableVersion();
+
+				var contextCode = Session.get("CONTEXT_ID");
+				genericGameUpdateWithCustomFilter(contextCode, combo["filter"], saveableOp, combo["update"], function() {
+					console.log("BACK, did it work?!?!");
+				});
+			}
+		}
+	});
+
 	$("#stock_pass_run").click(function() {
 		var passPlayer = $("#stock_pass_player").val();
 
@@ -121,9 +156,13 @@ var setGameOpListeners = function() {
 
 // TODO - should "Op" be a class so we don't spread this functionality all over?
 export const makeOpReadable = function(op) {
+	var rebuilt = GameOp.reconstruct(op);
+	return rebuilt.getReadableVersion();
+	/*
 	if (op.type == "float_company") {
 		return op.actor + " floated " + op.target + " at " + op.price;
 	}
+	*/
 };
 
 export const postGameCreated = function() {
@@ -166,6 +205,7 @@ var makeRandomizedCompanyList = function() {
 
 var rebuildDash = function() {
 	var gameState = Session.get("GAME_STATE");
+	window.gameState = gameState;
 	if (gameState === undefined || gameState["_id"] === undefined) {
 		console.log("BAILING");
 		return;
@@ -234,50 +274,76 @@ var rebuildDash = function() {
 		$("<td/>").html(players[i].cash).appendTo(playerRow);
 	}
 
-	// set the UI elements - start
-	var floatableCompanies = [];
-	for (var i = 0 ; i < companies.length ; i++) {
-		if (companies[i].shares[0] == null) {
-			floatableCompanies.push(companies[i].color);
-		}
-	}
-
-	var floatCapablePlayers = [];
-	for (var i = 0 ; i < players.length ; i++) {
-		if (players[i].cash >= 12) {
-			floatCapablePlayers.push(players[i].name);
-		}
-	}
-
-	// active player
-	var activePlayerIdx = getPlayerIndexByName(gameState.playerTurn);
-	var activePlayer = gameState.players[activePlayerIdx];
-
-	if (floatableCompanies.length > 0 && activePlayer.cash >= 12) {
-		$("div#ui_sr_float").show();
-		$("#float_company").empty();
-		for (var k = 0 ; k < floatableCompanies.length ; k++) {
-			var opt = $("<option/>").val(floatableCompanies[k]).html(floatableCompanies[k]).appendTo($("#float_company"));
-		}
-
-		/*
-		$("#float_player").empty();
-		for (var k = 0 ; k < floatCapablePlayers.length ; k++) {
-			var opt = $("<option/>").val(floatCapablePlayers[k]).html(floatCapablePlayers[k]).appendTo($("#float_player"));
-		}
-		*/
-
-		$("#float_player").val(gameState.playerTurn);
-		$("#float_player_display").html(gameState.playerTurn);
-	} else {
-		$("div#ui_sr_float").hide();
-	}
-
-	$("#stock_pass_player").val(gameState.playerTurn);
-	$("#stock_pass_player_display").html(gameState.playerTurn);
-	// set the UI elements - end
+	buildUi();
 
 	displayLogData();
+};
+
+var buildUi = function() {
+	var gameState = Session.get("GAME_STATE");
+	var companies = gameState["companies"];
+
+	if (gameState.state.startsWith("SR")) {
+		$("#ui_stock_rounds").show();
+		$("#ui_operating_rounds").hide();
+
+		// active player
+		var activePlayerIdx = getPlayerIndexByName(gameState.playerTurn);
+		var activePlayer = gameState.players[activePlayerIdx];
+
+		// FLOAT UI
+		var floatableCompanies = [];
+		for (var i = 0 ; i < companies.length ; i++) {
+			if (companies[i].shares[0] == null) {
+				floatableCompanies.push(companies[i].color);
+			}
+		}
+		if (floatableCompanies.length > 0 && activePlayer.cash >= 12) {
+			$("div#ui_sr_float").show();
+			$("#float_company").empty();
+			for (var k = 0 ; k < floatableCompanies.length ; k++) {
+				var opt = $("<option/>").val(floatableCompanies[k]).html(floatableCompanies[k]).appendTo($("#float_company"));
+			}
+
+			$("#float_player").val(gameState.playerTurn);
+			$("#float_player_display").html(gameState.playerTurn);
+		} else {
+			$("div#ui_sr_float").hide();
+		}
+
+		// INVEST UI
+		// TODO - this currently lets you invest in a company multiple times in a single SR...
+		var investableCompanies = [];
+		for (var i = 0 ; i < companies.length ; i++) {
+			console.log("checking company [" + i + "] / " + companies[i].shares.slice(companies[i].shares.length - 1)[0] );
+			if (companies[i].stock != null &&
+				companies[i].shares.slice(companies[i].shares.length-1)[0] == null &&
+				activePlayer.cash >= companies[i].stock
+			) {
+				investableCompanies.push(companies[i].color);
+			}
+		}
+
+		if (investableCompanies.length > 0 && activePlayer.cash >= 12) {
+			$("div#ui_sr_invest").show();
+			$("#invest_company").empty();
+			for (var k = 0 ; k < investableCompanies.length ; k++) {
+				var company = getCompanyByColor(investableCompanies[k]);
+				var opt = $("<option/>").val(investableCompanies[k]).html(investableCompanies[k] + " for " + company.stock).appendTo($("#invest_company"));
+			}
+
+			$("#invest_player").val(gameState.playerTurn);
+			$("#invest_player_display").html(gameState.playerTurn);
+		} else {
+			$("div#ui_sr_invest").hide();
+		}
+
+		$("#stock_pass_player").val(gameState.playerTurn);
+		$("#stock_pass_player_display").html(gameState.playerTurn);
+	} else {
+		$("#ui_stock_rounds").hide();
+		$("#ui_operating_rounds").show();
+	}
 };
 
 // TODO - this should be part of the core - every game should probably be showing this stuff
@@ -367,7 +433,7 @@ export const postSetupRendered = function() {
 
 				setGamePlayers(contextCode, playerNames, playerColors, function() {
 					var updateObj = {
-						"state": "SR1",
+						"state": LEGAL_GAME_ROUNDS[0],
 						"companies": makeRandomizedCompanyList()
 					};
 					for (var i = 0 ; i < playerNames.length ; i++) {
@@ -389,10 +455,47 @@ export const postSetupRendered = function() {
 	});
 };
 
+export const allPlayersJustPassed = function() {
+	var gameState = Session.get("GAME_STATE");
+	var ops = gameState.gameOps;
+	var numPlayers = gameState.players.length;
+	var numConsecutivePasses = 0;
+	for (var i = ops.length - 1 ; i >= 0 ; i--) {
+		var op = ops[i];
+		if (op.type == "stock_pass") {
+			numConsecutivePasses++;
+		} else {
+			break;
+		}
+	}
+
+	return numConsecutivePasses == numPlayers;
+};
+
+getCurrentAndNextGameRounds = function() {
+	var gameState = Session.get("GAME_STATE");
+	var currRound = gameState.state;
+	var idx = LEGAL_GAME_ROUNDS.indexOf(currRound);
+	var nextRound = idx < LEGAL_GAME_ROUNDS.length-1 ? LEGAL_GAME_ROUNDS[idx + 1] : null;
+	return {
+		current: currRound,
+		next: nextRound
+	};
+};
+
 export const processGameUpdate = function(addUpdateDelete, gameState) {
 	console.log("##### processGameUpdate: start (" + addUpdateDelete + ")");
 	console.log(gameState);
 	console.log("##### processGameUpdate: end");
+
+	if (allPlayersJustPassed()) {
+		console.log("##### EVERYONE PASSED - NOW WHAT?!?!");
+		var rounds = getCurrentAndNextGameRounds();
+		console.log(rounds);
+		var op = new StateChangeOp(rounds.current, rounds.next);
+		op.sendToServer();
+	}
+
 	rebuildDash();
 };
 
@@ -444,6 +547,11 @@ function getPlayerByName(name) {
 			return players[i];
 		}
 	}
+}
+
+function getActivePlayer() {
+	var gameState = Session.get("GAME_STATE");
+	return getPlayerByName(gameState.playerTurn);
 }
 
 function getPlayerIndexByName(name) {
@@ -511,7 +619,65 @@ class FloatOp extends GameOp {
 	}
 
 	getReadableVersion() {
-		return this.actor + " floated " + this.target + " at " + this.price;
+		return this.actor + " floated " + this.target + " at " + this.price + ".";
+	}
+}
+
+class InvestOp extends GameOp {
+	fieldsToSave= ["actor", "target", "price", "shareIndex"];
+
+	constructor(actorName, companyColor, floatPrice, shareIndex) {
+		super("invest_company");
+		this.actor = actorName;
+		this.target = companyColor;
+		this.price = Number(floatPrice);
+		this.shareIndex = shareIndex;
+	}
+
+	getUndoFilterAndUpdateObj() {
+		return null;
+	}
+
+	getActionFilterAndUpdateObj() {
+		var player = getPlayerByName(this.actor);
+		var companyIdx = getCompanyIndexByColor(this.target);
+		var company = Session.get("GAME_STATE").companies[companyIdx];
+		var playerIdx = getPlayerIndexByName(this.actor);
+		var filter = { };
+		filter["playerTurn"] = this.actor;
+		filter["companies." + companyIdx + ".shares." + this.shareIndex] = { "$type": 10 }; // TODO - magic type!
+		filter["companies." + companyIdx + ".stock"] = this.price;
+		filter["players." + playerIdx + ".cash"] = player.cash;
+
+		var updateObj = {};
+		updateObj["playerTurn"] = getNameOfNextPlayer();
+		updateObj["companies." + companyIdx + ".shares." + this.shareIndex] = this.actor;
+		updateObj["companies." + companyIdx + ".treasury"] = company.treasury + this.price;
+		updateObj["players." + playerIdx + ".cash"] = Number(player.cash - this.price);
+
+		return { "filter": filter, "update": updateObj };
+	}
+
+	getReadableVersion() {
+		var company = getCompanyByColor(this.target);
+		var nth = null;
+		if (this.shareIndex == 1) {
+			nth = "second";
+		} else if (this.shareIndex == 2) {
+			nth = "third";
+		} else if (this.shareIndex == 3) {
+			nth = "fourth";
+		} else if (this.shareIndex == 4) {
+			nth = "fifth";
+		} else if (this.shareIndex == 5) {
+			nth = "sixth";
+		}
+
+		if (this.shareIndex == company.shares.length - 1) {
+			nth += " and final";
+		}
+
+		return this.actor + " bought the " + nth + " share in " + this.target + " for " + this.price + ".";
 	}
 }
 
@@ -543,4 +709,42 @@ class StockPassOp extends GameOp {
 	}
 }
 
-GameOp.registerGameOps([FloatOp, StockPassOp]);
+class StateChangeOp extends GameOp {
+	fieldsToSave= ["fromState", "toState"];
+
+	constructor(fromState, toState) {
+		super("state_change");
+		this.fromState = fromState;
+		this.toState = toState;
+
+		this.isAutoOp = true;
+	}
+
+	getUndoFilterAndUpdateObj() {
+		return null;
+	}
+
+	getActionFilterAndUpdateObj() {
+		var filter = { };
+		filter["state"] = this.fromState;
+
+		if (this.fromState.startsWith("SR")) {
+		}
+
+		var updateObj = {};
+		updateObj["state"] = this.toState;
+
+		console.log("AUTO:");
+		console.log(filter);
+		console.log(updateObj);
+
+
+		return { "filter": filter, "update": updateObj };
+	}
+
+	getReadableVersion() {
+		return "Game moved from " + this.fromState + " to " + this.toState;
+	}
+}
+
+GameOp.registerGameOps([FloatOp, InvestOp, StockPassOp, StateChangeOp]);
