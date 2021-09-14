@@ -395,6 +395,12 @@ export class GameOp {
 	constructor(opType) {
 		this.uuid = uuidv4();
 		this.type = opType;
+
+		var gameState = Session.get("GAME_STATE");
+		this.opIndex = -1;
+		if (gameState != null && gameState.gameOps !== undefined) {
+			this.opIndex = gameState.gameOps.length;
+		}
 	}
 
 	static registerGameOps = function(gameOpClasses) {
@@ -429,6 +435,15 @@ export class GameOp {
 		}
 	}
 
+	getActionFilter() {
+		var filter = {};
+		filter["gameOps"] = {
+			"$size": this.opIndex
+		}
+
+		return filter;
+	}
+
 	// builds an object like { uuid: "xxxx-xx-xxxx", type: "pass", player: "Foo" } based on the "fieldsToSave" defined in an op,
 	// that will be persisted to the database.
 	buildSaveableVersion() {
@@ -460,12 +475,11 @@ export class GameOp {
 		return "undo not overridden";
 	}
 
-	sendToServer(callbackFxn) {
-		var combo = this.getActionFilterAndUpdateObj();
+	sendActionToServer(callbackFxn) {
 		var saveableOp = this.buildSaveableVersion();
 
 		var contextCode = Session.get("CONTEXT_ID");
-		genericGameUpdateWithCustomFilter(contextCode, combo["filter"], saveableOp, combo["update"], function() {
+		genericGameUpdateWithCustomFilter(contextCode, this.getActionFilter(), saveableOp, this.getActionUpdateObj(), function() {
 			if (callbackFxn != null) {
 				callbackFxn();
 			}

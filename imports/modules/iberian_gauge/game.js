@@ -88,20 +88,7 @@ var setGameOpListeners = function() {
 			// display, should be bundled together when undo'ing, etc.
 
 			var op = new FloatOp(floatPlayer, floatCompany, floatPrice);
-			var combo = op.getActionFilterAndUpdateObj();
-			var saveableOp = op.buildSaveableVersion();
-
-			var contextCode = Session.get("CONTEXT_ID");
-			genericGameUpdateWithCustomFilter(contextCode, combo["filter"], saveableOp, combo["update"], function() {
-				console.log("BACK, did it work?!?!");
-			});
-
-			/*
-			var fakeOp = '{ "type": "float_company", "actor": "Dick", "target": "purple", "price": 20 }';
-			console.log("fake op is [" + fakeOp + "] (" + typeof(fakeOp) + ")");
-			var rebuilt = GameOp.reconstruct(fakeOp);
-			console.log("NEW REBUILT is [" + rebuilt + "]");
-			*/
+			op.sendActionToServer();
 		}
 	});
 
@@ -125,13 +112,7 @@ var setGameOpListeners = function() {
 
 			if (shareIndex >= 0) {
 				var op = new InvestOp(investPlayer, investCompany, company.stock, shareIndex);
-				var combo = op.getActionFilterAndUpdateObj();
-				var saveableOp = op.buildSaveableVersion();
-
-				var contextCode = Session.get("CONTEXT_ID");
-				genericGameUpdateWithCustomFilter(contextCode, combo["filter"], saveableOp, combo["update"], function() {
-					console.log("BACK, did it work?!?!");
-				});
+				op.sendActionToServer();
 			}
 		}
 	});
@@ -143,26 +124,13 @@ var setGameOpListeners = function() {
 		var player = getPlayerByName(passPlayer);
 
 		var op = new StockPassOp(passPlayer);
-		var combo = op.getActionFilterAndUpdateObj();
-		var saveableOp = op.buildSaveableVersion();
-
-		var contextCode = Session.get("CONTEXT_ID");
-		genericGameUpdateWithCustomFilter(contextCode, combo["filter"], saveableOp, combo["update"], function() {
-			console.log("BACK, did it work?!?!");
-		});
-
+		op.sendActionToServer();
 	});
 };
 
-// TODO - should "Op" be a class so we don't spread this functionality all over?
 export const makeOpReadable = function(op) {
 	var rebuilt = GameOp.reconstruct(op);
 	return rebuilt.getReadableVersion();
-	/*
-	if (op.type == "float_company") {
-		return op.actor + " floated " + op.target + " at " + op.price;
-	}
-	*/
 };
 
 export const postGameCreated = function() {
@@ -493,7 +461,7 @@ export const processGameUpdate = function(addUpdateDelete, gameState) {
 		var rounds = getCurrentAndNextGameRounds();
 		console.log(rounds);
 		var op = new StateChangeOp(rounds.current, rounds.next);
-		op.sendToServer();
+		op.sendActionToServer();
 	}
 
 	rebuildDash();
@@ -596,16 +564,10 @@ class FloatOp extends GameOp {
 		return null;
 	}
 
-	getActionFilterAndUpdateObj() {
+	getActionUpdateObj() {
 		var player = getPlayerByName(this.actor);
 		var companyIdx = getCompanyIndexByColor(this.target);
 		var playerIdx = getPlayerIndexByName(this.actor);
-		var filter = { };
-		filter["playerTurn"] = this.actor;
-		filter["companies." + companyIdx + ".shares.0"] = { "$type": 10 }; // TODO - magic type!
-		filter["companies." + companyIdx + ".stock"] = null;
-		filter["companies." + companyIdx + ".income"] = null;
-		filter["players." + playerIdx + ".cash"] = player.cash;
 
 		var updateObj = {};
 		updateObj["playerTurn"] = getNameOfNextPlayer();
@@ -615,7 +577,7 @@ class FloatOp extends GameOp {
 		updateObj["companies." + companyIdx + ".income"] = 10;
 		updateObj["players." + playerIdx + ".cash"] = Number(player.cash - this.price);
 
-		return { "filter": filter, "update": updateObj };
+		return updateObj;
 	}
 
 	getReadableVersion() {
@@ -638,16 +600,11 @@ class InvestOp extends GameOp {
 		return null;
 	}
 
-	getActionFilterAndUpdateObj() {
+	getActionUpdateObj() {
 		var player = getPlayerByName(this.actor);
 		var companyIdx = getCompanyIndexByColor(this.target);
 		var company = Session.get("GAME_STATE").companies[companyIdx];
 		var playerIdx = getPlayerIndexByName(this.actor);
-		var filter = { };
-		filter["playerTurn"] = this.actor;
-		filter["companies." + companyIdx + ".shares." + this.shareIndex] = { "$type": 10 }; // TODO - magic type!
-		filter["companies." + companyIdx + ".stock"] = this.price;
-		filter["players." + playerIdx + ".cash"] = player.cash;
 
 		var updateObj = {};
 		updateObj["playerTurn"] = getNameOfNextPlayer();
@@ -655,7 +612,7 @@ class InvestOp extends GameOp {
 		updateObj["companies." + companyIdx + ".treasury"] = company.treasury + this.price;
 		updateObj["players." + playerIdx + ".cash"] = Number(player.cash - this.price);
 
-		return { "filter": filter, "update": updateObj };
+		return updateObj;
 	}
 
 	getReadableVersion() {
@@ -693,15 +650,11 @@ class StockPassOp extends GameOp {
 		return null;
 	}
 
-	getActionFilterAndUpdateObj() {
-		var player = getPlayerByName(this.actor);
-		var filter = { };
-		filter["playerTurn"] = this.actor;
-
+	getActionUpdateObj() {
 		var updateObj = {};
 		updateObj["playerTurn"] = getNameOfNextPlayer();
 
-		return { "filter": filter, "update": updateObj };
+		return updateObj;
 	}
 
 	getReadableVersion() {
@@ -724,22 +677,11 @@ class StateChangeOp extends GameOp {
 		return null;
 	}
 
-	getActionFilterAndUpdateObj() {
-		var filter = { };
-		filter["state"] = this.fromState;
-
-		if (this.fromState.startsWith("SR")) {
-		}
-
+	getActionUpdateObj() {
 		var updateObj = {};
 		updateObj["state"] = this.toState;
 
-		console.log("AUTO:");
-		console.log(filter);
-		console.log(updateObj);
-
-
-		return { "filter": filter, "update": updateObj };
+		return updateObj;
 	}
 
 	getReadableVersion() {
