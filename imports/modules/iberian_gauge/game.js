@@ -1,5 +1,5 @@
 import { demoUpdate } from '/imports/api/GamesCollection';
-import { GameOp, genericGameUpdateWithCustomFilter, createStubbedGame, setGamePlayers, genericGameUpdate, renderTemplate } from '/client/main';
+import { GameOp, inChainedUndo, genericGameUpdateWithCustomFilter, createStubbedGame, setGamePlayers, genericGameUpdate, renderTemplate } from '/client/main';
 
 var LEGAL_GAME_ROUNDS = [
 	"SR1", "OR1", "SR2", "OR2a", "OR2b", "SR3", "OR3a", "OR3b", "SR4", "OR4"
@@ -184,6 +184,10 @@ var rebuildDash = function() {
 	var table = $("<table border=0>").addClass("dividendChart").appendTo(container);
 
 	var companies = gameState["companies"];
+
+	if (companies === undefined) {
+		return;
+	}
 
 	var justRenderedStockBump = false;
 	for (var income = 100 ; income >= 10 ; income -= 5) {
@@ -399,6 +403,7 @@ export const postSetupRendered = function() {
 			createStubbedGame("iberian_gauge", function() {
 				var contextCode = Session.get("CONTEXT_ID");
 
+				console.log("SETTING PLAYERS");
 				setGamePlayers(contextCode, playerNames, playerColors, function() {
 					var updateObj = {
 						"state": LEGAL_GAME_ROUNDS[0],
@@ -411,6 +416,7 @@ export const postSetupRendered = function() {
 					randomizedPlayerNames = shuffle(playerNames);
 					updateObj["playerTurn"] = randomizedPlayerNames[0];
 
+					console.log("SETTING COMPANIES");
 					genericGameUpdate(contextCode, "defaultSetup", updateObj, function() {
 						FlowRouter.go("/game?contextCode=" + Session.get("CONTEXT_ID"));
 					});
@@ -425,6 +431,9 @@ export const postSetupRendered = function() {
 
 export const allPlayersJustPassed = function() {
 	var gameState = Session.get("GAME_STATE");
+	if (gameState.players === undefined) {
+		return false;
+	}
 	var ops = gameState.gameOps;
 	var numPlayers = gameState.players.length;
 	var numConsecutivePasses = 0;
@@ -561,7 +570,19 @@ class FloatOp extends GameOp {
 	}
 
 	getUndoUpdateObj() {
-		return null;
+		var player = getPlayerByName(this.actor);
+		var companyIdx = getCompanyIndexByColor(this.target);
+		var playerIdx = getPlayerIndexByName(this.actor);
+
+		var updateObj = {};
+		updateObj["playerTurn"] = getNameOfPreviousPlayer();
+		updateObj["companies." + companyIdx + ".shares.0"] = null;
+		updateObj["companies." + companyIdx + ".treasury"] = null;
+		updateObj["companies." + companyIdx + ".stock"] = null;
+		updateObj["companies." + companyIdx + ".income"] = null;
+		updateObj["players." + playerIdx + ".cash"] = Number(player.cash + this.price);
+
+		return updateObj;
 	}
 
 	getActionUpdateObj() {
@@ -597,7 +618,18 @@ class InvestOp extends GameOp {
 	}
 
 	getUndoUpdateObj() {
-		return null;
+		var player = getPlayerByName(this.actor);
+		var companyIdx = getCompanyIndexByColor(this.target);
+		var company = Session.get("GAME_STATE").companies[companyIdx];
+		var playerIdx = getPlayerIndexByName(this.actor);
+
+		var updateObj = {};
+		updateObj["playerTurn"] = getNameOfPreviousPlayer();
+		updateObj["companies." + companyIdx + ".shares." + this.shareIndex] = null;
+		updateObj["companies." + companyIdx + ".treasury"] = company.treasury - this.price;
+		updateObj["players." + playerIdx + ".cash"] = Number(player.cash + this.price);
+
+		return updateObj;
 	}
 
 	getActionUpdateObj() {
@@ -689,7 +721,7 @@ class StateChangeOp extends GameOp {
 	}
 
 	getReadableVersion() {
-		return "Game moved from " + this.fromState + " to " + this.toState;
+		return "Game moved from " + this.fromState + " to " + this.toState + ".";
 	}
 }
 

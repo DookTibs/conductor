@@ -1,5 +1,5 @@
 import { Template } from 'meteor/templating';
-import { GameOp } from '/client/main';
+import { GameOp, undoLastOp } from '/client/main';
 
 import './SiteNav.css';
 import './SiteNav.html';
@@ -12,13 +12,7 @@ Template.siteTopNavBar.helpers({
 
 Template.siteTopNavBar.onRendered(function x() {
 	$("#undo a").click(function() {
-		var gameState = Session.get("GAME_STATE");
-		if (gameState.gameOps.length > 0) {
-			var lastOp = gameState.gameOps[gameState.gameOps.length-1];
-			var rebuilt = GameOp.reconstruct(lastOp);
-			rebuilt.sendUndoToServer();
-		}
-
+		undoLastOp();
 	});
 });
 

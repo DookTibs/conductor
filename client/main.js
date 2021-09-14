@@ -147,6 +147,20 @@ FlowRouter.route("/game", {
 	}
 });
 
+export const undoLastOp = function() {
+	var gameState = Session.get("GAME_STATE");
+	if (gameState.gameOps.length > 0) {
+		var lastOp = gameState.gameOps[gameState.gameOps.length-1];
+		var rebuilt = GameOp.reconstruct(lastOp);
+		rebuilt.sendUndoToServer();
+	}
+};
+
+export const inChainedUndo = function() {
+	var gameState = Session.get("GAME_STATE");
+	return gameState.chained_undo === true;
+};
+
 export const renderTemplate = function(templateName, templateData, onCreated, onRendered) {
 	Template[templateName].onCreated(function x() {
 		console.log(templateName + " onCreated...");
@@ -304,20 +318,31 @@ var listenForGameUpdates = function(moduleHandler) {
 				// console.log(gameCursor.fetch()[0]);
 				var gameState = gameCursor.fetch()[0];
 				Session.set("GAME_STATE", gameState);
-				moduleHandler("ADD", gameState);
+
+				if (inChainedUndo()) {
+					undoLastOp();
+				} else {
+					moduleHandler("ADD", gameState);
+				}
 			},
 			changed: function (newDoc, oldDoc) {
 				console.log("doc changed:");
 				// console.log(gameCursor.fetch()[0]);
 				var gameState = gameCursor.fetch()[0];
 				Session.set("GAME_STATE", gameState);
-				moduleHandler("UPDATE", gameState);
+				if (inChainedUndo()) {
+					undoLastOp();
+				} else {
+					moduleHandler("UPDATE", gameState);
+				}
 			},
+			/*
 			removed: function (oldDoc) {
 				console.log("doc removed: " + oldDoc);
 				Session.set("GAME_STATE", {});
 				moduleHandler("DELETE", oldDoc);
 			}
+			*/
 		});
 	});
 };
@@ -507,8 +532,16 @@ export class GameOp {
 	}
 
 	sendUndoToServer(callbackFxn) {
+		var updateObj = this.getUndoUpdateObj();
+
+		if (this.isAutoOp) {
+			updateObj["chained_undo"] = true;
+		} else {
+			updateObj["chained_undo"] = null;
+		}
+
 		var contextCode = Session.get("CONTEXT_ID");
-		genericGameUndoWithCustomFilter(contextCode, this.getUndoFilter(), this.getUndoUpdateObj(), function() {
+		genericGameUndoWithCustomFilter(contextCode, this.getUndoFilter(), updateObj, function() {
 			if (callbackFxn != null) {
 				callbackFxn();
 			}
