@@ -37,3 +37,24 @@ div.bottom_nav span#expander {
 	margin-right: 22px;
 }
 
+div.bottom_nav.expanded span.most_recent_only {
+	display: none;
+}
+
+div.bottom_nav div.full {
+	display: none;
+}
+
+div.bottom_nav.expanded div.full {
+	margin-top: 17px;
+	display: block;
+}
+
+div.bottom_nav.expanded div.full textarea {
+	width: 94%;
+}
+
+span#expander a {
+	color: white;
+	text-decoration: none;
+}

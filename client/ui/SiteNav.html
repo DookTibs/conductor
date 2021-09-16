@@ -8,7 +8,12 @@
 
 <template name="siteBottomNavBar">
 	<div class="bottom_nav">
-		what goes here?
-		<span id="expander"><a href="">EXPAND</a></span>
+		<span class="most_recent_only">{{ lastOp }}</span>
+		<span id="expander"><a href="">[+]</a></span>
+		<div class="full">
+		<textarea rows=25>{{#each allOps}}{{> singleOp}}{{/each}}</textarea>
+		</div>
 	</div>
 </template>
+
+<template name="singleOp">{{this}}</template>

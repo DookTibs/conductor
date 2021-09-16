@@ -248,7 +248,7 @@ var rebuildDash = function() {
 
 	buildUi();
 
-	displayLogData();
+	// displayLogData();
 };
 
 var buildUi = function() {
@@ -330,6 +330,7 @@ var buildUi = function() {
 	}
 };
 
+/*
 // TODO - this should be part of the core - every game should probably be showing this stuff
 var displayLogData = function() {
 	var gameLogContainer = $("#gameLog").empty();
@@ -345,6 +346,7 @@ var displayLogData = function() {
 		}
 	}
 };
+*/
 
 export const getNameOfNextPlayer = function(playerName) {
 	var gameState = Session.get("GAME_STATE");

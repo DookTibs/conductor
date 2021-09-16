@@ -23,12 +23,41 @@ Template.siteBottomNavBar.onRendered(function x() {
 		if (bottomNavDiv.hasClass("expanded")) {
 			bottomNavDiv.removeClass("expanded");
 			$("div#__blaze-root").removeClass("shrunk");
-			$(this).html("EXPAND");
+			$(this).html("[+]");
 		} else {
 			bottomNavDiv.addClass("expanded");
 			$("div#__blaze-root").addClass("shrunk");
-			$(this).html("SHRINK");
+			$(this).html("[-]");
+
+			// scroll the log to the bottom
+			$('div.full textarea').scrollTop($("div.full textarea")[0].scrollHeight); 
 		}
 
 	});
+});
+
+Template.siteBottomNavBar.helpers({
+	lastOp() {
+		var gameState = Session.get("GAME_STATE");
+		var rawOps = gameState.gameOps;
+		if (rawOps !== undefined && rawOps.length > 0) {
+			var lastGameOp = GameOp.reconstruct(rawOps[rawOps.length-1]);
+			return lastGameOp.getReadableVersion();
+		}
+	},
+	allOps() {
+		var gameState = Session.get("GAME_STATE");
+		var rawOps = gameState.gameOps;
+
+		if (rawOps !== undefined && rawOps.length > 0) {
+			var gameOps = [];
+			for (var i = 0 ; i < rawOps.length ; i++) {
+				var gameOp = GameOp.reconstruct(rawOps[i]);
+				gameOps.push("[" + (i+1) + "] " + gameOp.getReadableVersion() + "\n");
+			}
+			return gameOps;
+		} else {
+			return [];
+		}
+	}
 });
