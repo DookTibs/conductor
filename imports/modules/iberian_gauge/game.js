@@ -242,7 +242,7 @@ var rebuildDash = function() {
 	var players = gameState["players"];
 	for (var i = 0 ; i < players.length ; i++) {
 		var playerRow = $("<tr/>").appendTo(playerTable);
-		$("<td/>").html(players[i].name).appendTo(playerRow);
+		$("<td/>").addClass("playerName").addClass(players[i].color).html(players[i].name).appendTo(playerRow);
 		$("<td/>").html(players[i].cash).appendTo(playerRow);
 	}
 
@@ -278,7 +278,7 @@ var buildUi = function() {
 			}
 
 			$("#float_player").val(gameState.playerTurn);
-			$("#float_player_display").html(gameState.playerTurn);
+			$("#float_player_display").html(gameState.playerTurn).attr("class", "playerName").addClass(activePlayer.color);
 		} else {
 			$("div#ui_sr_float").hide();
 		}
@@ -317,13 +317,13 @@ var buildUi = function() {
 			}
 
 			$("#invest_player").val(gameState.playerTurn);
-			$("#invest_player_display").html(gameState.playerTurn);
+			$("#invest_player_display").html(gameState.playerTurn).attr("class", "playerName").addClass(activePlayer.color);
 		} else {
 			$("div#ui_sr_invest").hide();
 		}
 
 		$("#stock_pass_player").val(gameState.playerTurn);
-		$("#stock_pass_player_display").html(gameState.playerTurn);
+		$("#stock_pass_player_display").html(gameState.playerTurn).attr("class", "playerName").addClass(activePlayer.color);
 	} else {
 		$("#ui_stock_rounds").hide();
 		$("#ui_operating_rounds").show();

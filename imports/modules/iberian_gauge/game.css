@@ -78,6 +78,16 @@ td.railroad {
 	padding-left: 10px;
 }
 
+.playerName {
+	border: 1px solid black;
+}
+
+.playerName.pink { background-color: #DE97B8; color: white; }
+.playerName.white { background-color: #E3E0E5; }
+.playerName.green { background-color: #ADCC66; }
+.playerName.blue { background-color: #5591B1; color: white; }
+.playerName.magenta { background-color: #890269; color: white; }
+
 hr {
 	clear: both;
 }
