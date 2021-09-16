@@ -284,11 +284,23 @@ var buildUi = function() {
 		}
 
 		// INVEST UI
-		// TODO - this currently lets you invest in a company multiple times in a single SR...
+		// we want to make sure you can't buy more than a single share of a given company in each SR
+		var companiesPlayerInvestedInAlreadyThisRound = {};
+		var opsThisRound = getOpsInThisRound();
+		for (var i = 0 ; i < opsThisRound.length ; i++) {
+			var op = opsThisRound[i];
+			if (op.actor == gameState.playerTurn) {
+				if (op.type == "float_company" || op.type == "invest_company") {
+					companiesPlayerInvestedInAlreadyThisRound[op.target] = true;
+				}
+			}
+		}
+
 		var investableCompanies = [];
 		for (var i = 0 ; i < companies.length ; i++) {
 			console.log("checking company [" + i + "] / " + companies[i].shares.slice(companies[i].shares.length - 1)[0] );
 			if (companies[i].stock != null &&
+				companiesPlayerInvestedInAlreadyThisRound[companies[i].color] === undefined &&
 				companies[i].shares.slice(companies[i].shares.length-1)[0] == null &&
 				activePlayer.cash >= companies[i].stock
 			) {
@@ -558,6 +570,22 @@ function calculateDividendForCompanyAtIncome(company, income) {
 
 	return Math.ceil(income / numShares);
 }
+
+function getOpsInThisRound() {
+	var gameOps = Session.get("GAME_STATE").gameOps;
+	var opsThisRound = [];
+	for (var i = gameOps.length - 1 ; i >= 0 ; i--) {
+		var op = gameOps[i];
+		if (op.type == "state_change") {
+			break;
+		} else {
+			opsThisRound.unshift(GameOp.reconstruct(op));
+		}
+	}
+	return opsThisRound;
+}
+
+// GAMEOPS: START
 
 class FloatOp extends GameOp {
 	fieldsToSave= ["actor", "target", "price"];
