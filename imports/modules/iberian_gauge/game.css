@@ -52,7 +52,7 @@ td.railroad {
 }
 
 .aqua.railroad {
-	background-color: aqua;
+	background-color: #81C6E7;
 }
 
 .red.railroad {
@@ -61,16 +61,16 @@ td.railroad {
 }
 
 .purple.railroad {
-	background-color: purple;
+	background-color: #71659E;
 	color: white;
 }
 
 .orange.railroad {
-	background-color: orange;
+	background-color: #DE8D31;
 }
 
 .yellow.railroad {
-	background-color: yellow;
+	background-color: #EFE858;
 }
 
 .playerHoldings {
